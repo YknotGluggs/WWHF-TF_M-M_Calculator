@@ -103,9 +103,7 @@ class tile:
 
 
     def get_surrounding(self,tiles):
-        ret = self.get_sides(tiles)
-        coords = self.coordinates
-        
+        ret = self.get_sides(tiles) + self.get_above(tiles) + self.get_below(tiles)
         return ret
 
     
