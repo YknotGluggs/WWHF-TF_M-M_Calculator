@@ -1,7 +1,8 @@
 import numpy
+import copy
 
 class pillar:
-    def __init__(self, color=-1, tile= None):
+    def __init__(self, color=-1, tile=None):
         self.color = color
         self.tile = tile
         self.allocated = 0
@@ -60,8 +61,8 @@ class tile:
                     ret.append(tiles[not coords[0]][coords[1]][coords[2]-1])
                     ret.append(-1)
                 else:
-                    ret.append(tiles[not coords[0]][coords[1]][coords[2]])
                     ret.append(tiles[not coords[0]][coords[1]][coords[2]-1])
+                    ret.append(tiles[not coords[0]][coords[1]][coords[2]])
             elif coords[1] == 1:
                 if coords[2]==0:
                     ret.append(-1)
@@ -70,8 +71,8 @@ class tile:
                     ret.append(tiles[not coords[0]][coords[1]][coords[2]-1])
                     ret.append(-1)
                 else:
-                    ret.append(tiles[not coords[0]][coords[1]][coords[2]])
                     ret.append(tiles[not coords[0]][coords[1]][coords[2]-1])
+                    ret.append(tiles[not coords[0]][coords[1]][coords[2]])
             else:
                 ret.append(tiles[not coords[0]][coords[1]][coords[2]])
                 ret.append(tiles[not coords[0]][coords[1]][coords[2]+1])
@@ -86,8 +87,8 @@ class tile:
                     ret.append(tiles[not coords[0]][coords[1]-1][coords[2]-1])
                     ret.append(-1)
                 else:
-                    ret.append(tiles[not coords[0]][coords[1]-1][coords[2]])
                     ret.append(tiles[not coords[0]][coords[1]-1][coords[2]-1])
+                    ret.append(tiles[not coords[0]][coords[1]-1][coords[2]])
             elif coords[1] == 2 or coords[1] == 3:
                 ret.append(tiles[not coords[0]][coords[1]-1][coords[2]])
                 ret.append(tiles[not coords[0]][coords[1]-1][coords[2]+1])
@@ -108,8 +109,8 @@ class tile:
                     ret.append(tiles[not coords[0]][coords[1]+1][coords[2]-1])
                     ret.append(-1)
                 else:
-                    ret.append(tiles[not coords[0]][coords[1]+1][coords[2]])
                     ret.append(tiles[not coords[0]][coords[1]+1][coords[2]-1])
+                    ret.append(tiles[not coords[0]][coords[1]+1][coords[2]])
             else:
                 if coords[2] == 0:
                     ret.append(-1)
@@ -118,8 +119,8 @@ class tile:
                     ret.append(tiles[not coords[0]][coords[1]+1][coords[2]-1])
                     ret.append(-1)
                 else:
-                    ret.append(tiles[not coords[0]][coords[1]+1][coords[2]])
                     ret.append(tiles[not coords[0]][coords[1]+1][coords[2]-1])
+                    ret.append(tiles[not coords[0]][coords[1]+1][coords[2]])
         else:
             if coords[1] == 0 or coords[1] == 1:
                 ret.append(tiles[not coords[0]][coords[1]][coords[2]])
@@ -132,8 +133,8 @@ class tile:
                     ret.append(tiles[not coords[0]][coords[1]][coords[2]-1])
                     ret.append(-1)
                 else:
-                    ret.append(tiles[not coords[0]][coords[1]][coords[2]])
                     ret.append(tiles[not coords[0]][coords[1]][coords[2]-1])
+                    ret.append(tiles[not coords[0]][coords[1]][coords[2]])
             else:
                 ret = [-1,-1]
         return ret
@@ -264,6 +265,7 @@ def get_flow_score(tiles):
             cur_sur = cur.get_surrounding(tiles)
             for i,x in enumerate(cur_sur):
                 if x != -1 and x.allocated == 1 and x.coordinates not in tested and cur.colors_front[i] == current_tested_color and x.colors_front[5-i] == cur.colors_front[i]:
+                    #print(x.coordinates, cur.coordinates)
                     queue.append(x)
             if len(queue) == 0:
                 match current_tested_color:
@@ -293,9 +295,9 @@ def get_flow_score(tiles):
 def get_cur_score(tiles): # Might change to sim for pairs instead of score [(8,3), (6,4), (6,4)]
     pil_b, pil_g, pil_r = get_pillar_scores(tiles)
     flow_b, flow_g, flow_r = get_flow_score(tiles)
-    print(pil_b, pil_g, pil_r)
-    print(flow_b, flow_g, flow_r)
-    return min(pil_b * flow_b, 24), min(pil_g * flow_g, 24), min(pil_r * flow_r, 24)
+    #print(pil_b, pil_g, pil_r)
+    #print(flow_b, flow_g, flow_r)
+    return [min(pil_b * flow_b, 24), min(pil_g * flow_g, 24), min(pil_r * flow_r, 24)]
     
 def percentage_increase(cur_score, sim_score): # Currently prioritizing closeness to 24 rather than balance
     tot_percentage_diff = 0
@@ -308,7 +310,6 @@ def percentage_increase(cur_score, sim_score): # Currently prioritizing closenes
 
 
 def simulate_tile_pair(tiles, cur_score, tile:tile, pillar:pillar):
-    delta = [0,0,0]
     sim_tile = []
     for p in tiles:
         for x in p:
@@ -319,26 +320,31 @@ def simulate_tile_pair(tiles, cur_score, tile:tile, pillar:pillar):
     placements = [-1,-1]
     mx_inc = -1
     found = False
+    #print(sim_tile)
     for x in sim_tile:
-        sim_tiles = tiles.copy()
+        sim_tiles = copy.deepcopy(tiles)
+        tile.coordinates = x
         sim_tiles[x[0]][x[1]][x[2]] = tile
         for p in sim_tiles:
             for l in p:
                 for y in l:
+                    #print(y.allocated)
                     if y.allocated == 1 and pillar.color in y.colors_back:
                         found = True
-                        y.pillar_color = pillar.color
-                        sim_b, sim_g, sim_r = get_cur_score(sim_tiles)
-                        sim_inc = percentage_increase(cur_score, [sim_b, sim_g, sim_r])
-                        if sim_inc > mx_inc:
+                        sim_sim_tiles = copy.deepcopy(sim_tiles)
+                        temp_coords = y.coordinates
+                        sim_sim_tiles[temp_coords[0]][temp_coords[1]][temp_coords[2]].pillar_color = pillar.color
+                        sim_score = get_cur_score(sim_sim_tiles)
+                        sim_inc = percentage_increase(cur_score, sim_score)
+                        if sim_inc > mx_inc: # might need to implemnent system that prioritizes closeness to other colors and amount of color pillars it supports
                             mx_inc = sim_inc
-                            placements = [x.coordinates, y.coordinates]
+                            placements = [x, y.coordinates]
         if not found:
-            sim_b, sim_g, sim_r = get_cur_score(sim_tiles)
-            sim_inc = percentage_increase(cur_score, [sim_b, sim_g, sim_r])
+            sim_score = get_cur_score(sim_tiles)
+            sim_inc = percentage_increase(cur_score, [sim_score])
             if sim_inc > mx_inc:
                 mx_inc = sim_inc
-                placements = [x.coordinates, y.coordinates]
+                placements = [x, y.coordinates]
 
     return placements
 
@@ -347,8 +353,18 @@ def game_loop():
     tiles = [[],[]]
     board_coordinates = [[],[]]
     gen_start(tiles, board_coordinates)
-    score_r, score_b, score_g = get_cur_score(tiles)
-    simulate_tile_pair()
+    score = get_cur_score(tiles)
+    print(score)
+    temp_tile = tile()
+    temp_tile.assign([2,2,2,2,2,2], [2])
+    temp_pillar = pillar(2)
+    new_tile, new_pillar = simulate_tile_pair(tiles, score, temp_tile, temp_pillar)
+    print(new_tile, new_pillar)
+    tiles[new_tile[0]][new_tile[1]][new_tile[2]] = temp_tile
+    tiles[new_pillar[0]][new_pillar[1]][new_pillar[2]].pillar_color = temp_pillar.color
+    score = get_cur_score(tiles)
+    print(score)
+    
 
     print(board_coordinates[0])
     print(board_coordinates[1])
